@@ -43,8 +43,8 @@ app.get('/api/', authCheck, (req, res) => {
 
 app.get('/login/google/', passport.authenticate('google', { scope: ['profile'], accessType: 'offline' }));
 app.get('/login/google/redirct', passport.authenticate('google', { session:false }), async (req, res) => {
-  const { accessToken, refreshToken } = await authenticateUser(req.user);
-  res.send('thanks!');
+  const { accessToken, refreshToken, userinfo } = await authenticateUser(req.user);
+  res.send(renderHomePage({ accessToken, refreshToken, userinfo }));
 });
 
 app.listen(3000, () => {
@@ -116,17 +116,37 @@ async function authenticateUser(user) {
   const profile = user.profile._json;
 
   const exists = await getUser(profile.sub);
-  if(exists == null) {
-    const userinfo = {
+
+  const userinfo = {
       username: profile.name,
       avatar: profile.picture,
       googleid: profile.sub
     };
 
+  if(exists == null) {
     await createUser(userinfo);
   }
   
   const accessToken = user.accessToken;
   const refreshToken = user.refreshToken;
-  return { accessToken, refreshToken};
+  return { accessToken, refreshToken, userinfo };
+}
+
+
+function renderHomePage({ accessToken, refreshToken, userinfo }) {
+  return `
+    <!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title></title>
+</head>
+<body>
+  <h1>Welcome ${userinfo.username}</h1>
+  <script>
+  </script>
+</body>
+</html>
+  `
 }
