@@ -50,7 +50,7 @@ app.get('/api/', authCheck, (req, res) => {
 app.get('/login/google/', passport.authenticate('google', { scope: ['profile'], accessType: 'offline' }));
 app.get('/login/google/redirct', passport.authenticate('google', { session:false }), async (req, res) => {
   const { accessToken, refreshToken, userinfo } = await authenticateUser(req.user);
-  res.cookie('user', JSON.stringify(userinfo), {maxAge: 900000, httpOnly: true });
+  res.cookie('user', JSON.stringify(userinfo), {maxAge: 900000 });
   res.send(renderHomePage());
 });
 
@@ -184,11 +184,30 @@ function renderHomePage(user) {
   <script>
  	
     const title = document.querySelector("#title");
+    const user = getCookie("user");
     
-    const refreshToken = localStorage.getItem("refreshToken")
-    if(!refreshToken) {
+    if(!user) {
       location.href = "/login"
-   } 
+   } else {
+      title.textContent = "Welcome"
+   }
+   
+   
+   function getCookie(cname) {
+  let name = cname + "=";
+  let decodedCookie = decodeURIComponent(document.cookie);
+  let ca = decodedCookie.split(';');
+  for(let i = 0; i <ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) == ' ') {
+      c = c.substring(1);
+    }
+    if (c.indexOf(name) == 0) {
+      return c.substring(name.length, c.length);
+    }
+  }
+  return "";
+}
     
   </script>
 </body>
