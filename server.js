@@ -1,6 +1,8 @@
 const express = require("express");
 const passport = require('passport');
 const dotenv = require('dotenv');
+const cookieParser = require("cookie-parser");
+
 const { promises: fsp } = require('fs');
 const usersdb =  'db/users.json';
 
@@ -16,6 +18,7 @@ const usersdb =  'db/users.json';
 dotenv.config();
 
 const app = express();
+app.use(cookieParser());
 app.use(express.static('public'));
 
 
@@ -47,11 +50,32 @@ app.get('/api/', authCheck, (req, res) => {
 app.get('/login/google/', passport.authenticate('google', { scope: ['profile'], accessType: 'offline' }));
 app.get('/login/google/redirct', passport.authenticate('google', { session:false }), async (req, res) => {
   const { accessToken, refreshToken, userinfo } = await authenticateUser(req.user);
-  res.send(renderHomePage({ accessToken, refreshToken, userinfo }));
+  res.cookie('user', JSON.stringify(userinfo), {maxAge: 900000 });
+  res.redirect('/');
 });
 
 app.get('/login', (req, res) => {
+  res.redirect('/profile');
+});
+
+app.get('/profile', (req, res) => {
   res.send(renderLoginPage());
+});
+
+app.get('/session', (req, res) => {
+  const user = {
+    username: 'isaac',
+    avatar: 'https://lh3.googleusercontent.com/a/AGNmyxYI8z1Y8UZMx8VjlNPZOK7tAJwzr-jeluo3p-tJ=s96-c'
+  };
+    
+  const data = {};
+  if(req.cookies.user) {
+    data.user = JSON.parse(req.cookies.user);
+  };
+  
+  res.json(
+    data
+  );
 });
 
 app.listen(3000, () => {
@@ -160,11 +184,30 @@ function renderHomePage(user) {
   <script>
  	
     const title = document.querySelector("#title");
+    const user = getCookie("user");
     
-    const refreshToken = localStorage.getItem("refreshToken")
-    if(!refreshToken) {
+    if(!user) {
       location.href = "/login"
-   } 
+   } else {
+      title.textContent = "Welcome"
+   }
+   
+   
+   function getCookie(cname) {
+  let name = cname + "=";
+  let decodedCookie = decodeURIComponent(document.cookie);
+  let ca = decodedCookie.split(';');
+  for(let i = 0; i <ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) == ' ') {
+      c = c.substring(1);
+    }
+    if (c.indexOf(name) == 0) {
+      return c.substring(name.length, c.length);
+    }
+  }
+  return "";
+}
     
   </script>
 </body>
@@ -178,20 +221,24 @@ function renderLoginPage() {
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Share GPT</title>
-    <link rel="stylesheet" href="styles/login.css" />
+    <title>Test GPT</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=0">  
+    <link rel="stylesheet" href="/styles/login.css" />
+    <script src="/js/login.js"></script>
   </head>
   <body class="body">
+  
     <div id="loading-div" class="container">
       <div class="loader"></div>
     </div>
+   
     <div id="login-div" class="container">
       <img src="/assets/icons/icon48.png" alt="Share GPT" />
-      <h1 class="title">Login to ShareGPT</h1>
+      <h1 class="title">Login to TestGPT</h1>
       <form
-        action="https://sharegpt.com/api/auth/signin/google"
+        action="/login/google"
         target="_blank"
-        method="POST"
+        method="GET"
       >
         <input id="csrfToken-google" type="hidden" name="csrfToken" />
         <button type="submit" class="button">
@@ -199,17 +246,21 @@ function renderLoginPage() {
           <span>Log in with Google</span>
         </button>
       </form>
+      
+      <!--
       <form
         action="https://sharegpt.com/api/auth/signin/twitter"
         target="_blank"
         method="POST"
       >
+      
         <input id="csrfToken-twitter" type="hidden" name="csrfToken" />
         <button class="button">
           <img src="/assets/twitter.svg" alt="Twitter" />
           <span>Log in with Twitter</span>
         </button>
       </form>
+      -->
     </div>
     <div id="session-div" class="container">
       <img id="session-image" alt="User Profile Pic" class="profile-pic" />
