@@ -51,7 +51,7 @@ app.get('/login/google/', passport.authenticate('google', { scope: ['profile'], 
 app.get('/login/google/redirct', passport.authenticate('google', { session:false }), async (req, res) => {
   const { accessToken, refreshToken, userinfo } = await authenticateUser(req.user);
   res.cookie('user', JSON.stringify(userinfo), {maxAge: 900000 });
-  res.send(renderHomePage());
+  res.redirect('/');
 });
 
 app.get('/login', (req, res) => {
