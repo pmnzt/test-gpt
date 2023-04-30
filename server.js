@@ -180,16 +180,19 @@ function renderHomePage(user) {
   <title></title>
 </head>
 <body>
-  <h1 id="title"></h1>
+
+  <div id="title"></div>
   <script>
  	
     const title = document.querySelector("#title");
+    
     const user = getCookie("user");
     
     if(!user) {
-      location.href = "/login"
+      location.href = "/login"      
    } else {
-      title.textContent = "Welcome"
+      const user_json = JSON.parse(user);
+       title.innerHTML = 'Welcome ' + user_json.username + ', <a href="/profile">Profile</a>';
    }
    
    
