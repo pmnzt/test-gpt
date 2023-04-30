@@ -21,7 +21,7 @@ dotenv.config();
 const app = express();
 app.use(cookieParser());
 app.use(express.static('public'));
-
+app.use(express.json());
 
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -79,18 +79,47 @@ app.get('/session', (req, res) => {
   );
 });
 
+app.get('/api/items', authCheck, (req, res) => { 
+  const items = getItems(req.authUser);
+  res.json({ items });
+});
+
+app.post('/api/items', authCheck, async (req, res) => {
+  const itemData = req.body;
+  const users = await getAllUsers();
+
+  for(let i = 0; i < users.length; i++) { 
+    const user = users[i];
+    
+    if(user.googleid == req.authUser.googleid) {
+      
+      if(users[i].items) {
+        users[i].items.push(itemData);
+      } else {
+        users[i].items = [];
+        users[i].items.push(itemData);
+      } 
+    } 
+  } 
+  
+  await fsp.writeFile(usersdb, JSON.stringify(users, null, 2));
+  res.json(itemData);
+});
+
 app.listen(3000, () => {
 	console.log('app is running.')
 })
 
-
+function getItems(user) {
+  return user.items;
+} 
 
 
 async function authCheck(req, res, next) {
   try {
    const authHeader = req.headers['authorization']
    const tokenInHeader = authHeader && authHeader.split(' ')[1] 
-   const tokenInCookies = JSON.parse(req.cookies.user).accessToken;
+   const tokenInCookies = req.cookies.user ? JSON.parse(req.cookies.user).accessToken : '';
    const token = tokenInHeader ? tokenInHeader : tokenInCookies;
   
    if(!token) {
@@ -103,6 +132,8 @@ async function authCheck(req, res, next) {
     if(user == null) {
       throw Error('this user is not registered');
     } 
+    
+    req.authUser = user;
    next();   
   } catch (err) {
      return res.status(401).json({ msg: err.message });
@@ -146,7 +177,7 @@ async function getUser(googleid) {
 
    for(let i = 0; i < users.length; i++) {
      if(users[i].googleid == googleid) {
-        return users[i].googleid;
+        return users[i];
      }
    }
 
