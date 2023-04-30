@@ -1,6 +1,7 @@
 const express = require("express");
 const passport = require('passport');
 const dotenv = require('dotenv');
+const axios = require('axios');
 const cookieParser = require("cookie-parser");
 
 const { promises: fsp } = require('fs');
@@ -47,7 +48,7 @@ app.get('/api/', authCheck, (req, res) => {
   res.sendStatus(200);
 })
 
-app.get('/login/google/', passport.authenticate('google', { scope: ['profile'], accessType: 'offline' }));
+app.get('/login/google/', passport.authenticate('google', { scope: ['profile', 'email'], accessType: 'offline' }));
 app.get('/login/google/redirct', passport.authenticate('google', { session:false }), async (req, res) => {
   const userinfo = await authenticateUser(req.user);
   res.cookie('user', JSON.stringify(userinfo), {maxAge: 1704085200 });
@@ -86,16 +87,22 @@ app.listen(3000, () => {
 
 
 async function authCheck(req, res, next) {
-   const authHeader = req.headers['authorization']
-   const token = authHeader && authHeader.split(' ')[1] 
-
   try {
+   const authHeader = req.headers['authorization']
+   const tokenInHeader = authHeader && authHeader.split(' ')[1] 
+   const tokenInCookies = JSON.parse(req.cookies.user).accessToken;
+   const token = tokenInHeader ? tokenInHeader : tokenInCookies;
+  
    if(!token) {
     throw Error("Unauthorized. Please provide valid credentials in the 'Authorization' header using the format 'Bearer <token>'.");
    }
 
    const userinfo = await getUserInfo(token);
    const user = await getUser(userinfo.id);
+   
+    if(user == null) {
+      throw Error('this user is not registered');
+    } 
    next();   
   } catch (err) {
      return res.status(401).json({ msg: err.message });
@@ -103,9 +110,13 @@ async function authCheck(req, res, next) {
      
 }
 
-async function getUserInfo() {
+async function getUserInfo(token) {
+  const res = await axios.get(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${token}`);
+  let id = 0;
+  const user = res.data;
+  id = user.sub;
   return {
-    id: 0
+    id
   } 
 } 
 
