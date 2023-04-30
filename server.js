@@ -1,6 +1,8 @@
 const express = require("express");
 const passport = require('passport');
 const dotenv = require('dotenv');
+const cookieParser = require("cookie-parser");
+
 const { promises: fsp } = require('fs');
 const usersdb =  'db/users.json';
 
@@ -16,6 +18,7 @@ const usersdb =  'db/users.json';
 dotenv.config();
 
 const app = express();
+app.use(cookieParser());
 app.use(express.static('public'));
 
 
@@ -47,7 +50,8 @@ app.get('/api/', authCheck, (req, res) => {
 app.get('/login/google/', passport.authenticate('google', { scope: ['profile'], accessType: 'offline' }));
 app.get('/login/google/redirct', passport.authenticate('google', { session:false }), async (req, res) => {
   const { accessToken, refreshToken, userinfo } = await authenticateUser(req.user);
-  res.send(renderHomePage({ accessToken, refreshToken, userinfo }));
+  res.cookie('user', JSON.stringify(userinfo), {maxAge: 900000, httpOnly: true });
+  res.send(renderHomePage());
 });
 
 app.get('/login', (req, res) => {
@@ -59,9 +63,12 @@ app.get('/session', (req, res) => {
     username: 'isaac',
     avatar: 'https://lh3.googleusercontent.com/a/AGNmyxYI8z1Y8UZMx8VjlNPZOK7tAJwzr-jeluo3p-tJ=s96-c'
   };
+    
   const data = {};
+  if(req.cookies.user) {
+    data.user = JSON.parse(req.cookies.user);
+  };
   
-  data.user = user;
   res.json(
     data
   );
@@ -206,9 +213,9 @@ function renderLoginPage() {
       <img src="/assets/icons/icon48.png" alt="Share GPT" />
       <h1 class="title">Login to TestGPT</h1>
       <form
-        action="https://sharegpt.com/api/auth/signin/google"
+        action="/login/google"
         target="_blank"
-        method="POST"
+        method="GET"
       >
         <input id="csrfToken-google" type="hidden" name="csrfToken" />
         <button type="submit" class="button">
