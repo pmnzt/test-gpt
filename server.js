@@ -49,8 +49,8 @@ app.get('/api/', authCheck, (req, res) => {
 
 app.get('/login/google/', passport.authenticate('google', { scope: ['profile'], accessType: 'offline' }));
 app.get('/login/google/redirct', passport.authenticate('google', { session:false }), async (req, res) => {
-  const { accessToken, refreshToken, userinfo } = await authenticateUser(req.user);
-  res.cookie('user', JSON.stringify(userinfo), {maxAge: 900000 });
+  const userinfo = await authenticateUser(req.user);
+  res.cookie('user', JSON.stringify(userinfo), {maxAge: 1704085200 });
   res.redirect('/');
 });
 
@@ -157,20 +157,20 @@ async function authenticateUser(user) {
   const userinfo = {
       username: profile.name,
       avatar: profile.picture,
-      googleid: profile.sub
+      googleid: profile.sub,
+      accessToken: user.accessToken,
+      refreshToken: user.refreshToken
     };
 
   if(exists == null) {
     await createUser(userinfo);
   }
   
-  const accessToken = user.accessToken;
-  const refreshToken = user.refreshToken;
-  return { accessToken, refreshToken, userinfo };
+  return userinfo;
 }
 
 
-function renderHomePage(user) {
+function renderHomePage() {
   return `
     <!DOCTYPE html>
 <html>
@@ -180,16 +180,19 @@ function renderHomePage(user) {
   <title></title>
 </head>
 <body>
-  <h1 id="title"></h1>
+
+  <div id="title"></div>
   <script>
  	
     const title = document.querySelector("#title");
+    
     const user = getCookie("user");
     
     if(!user) {
-      location.href = "/login"
+      location.href = "/login"      
    } else {
-      title.textContent = "Welcome"
+      const user_json = JSON.parse(user);
+       title.innerHTML = 'Welcome ' + user_json.username + ', <a href="/profile">Profile</a>';
    }
    
    
