@@ -55,6 +55,10 @@ app.get('/login/google/redirct', passport.authenticate('google', { session:false
 });
 
 app.get('/login', (req, res) => {
+  res.redirect('/profile');
+});
+
+app.get('/profile', (req, res) => {
   res.send(renderLoginPage());
 });
 
