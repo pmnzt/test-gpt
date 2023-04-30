@@ -86,16 +86,22 @@ app.listen(3000, () => {
 
 
 async function authCheck(req, res, next) {
-   const authHeader = req.headers['authorization']
-   const token = authHeader && authHeader.split(' ')[1] 
-
   try {
+   const authHeader = req.headers['authorization']
+   const tokenInHeader = authHeader && authHeader.split(' ')[1] 
+   const tokenInCookies = JSON.parse(req.cookies.user).accessToken;
+   const token = tokenInHeader ? tokenInHeader : tokenInCookies;
+  
    if(!token) {
     throw Error("Unauthorized. Please provide valid credentials in the 'Authorization' header using the format 'Bearer <token>'.");
    }
 
    const userinfo = await getUserInfo(token);
    const user = await getUser(userinfo.id);
+   
+    if(user == null) {
+      throw Error('this user is not registered');
+    } 
    next();   
   } catch (err) {
      return res.status(401).json({ msg: err.message });
