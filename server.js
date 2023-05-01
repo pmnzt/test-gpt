@@ -2,6 +2,7 @@ const express = require("express");
 const passport = require('passport');
 const dotenv = require('dotenv');
 const axios = require('axios');
+const cors = require('cors');
 const cookieParser = require("cookie-parser");
 
 const { promises: fsp } = require('fs');
@@ -16,12 +17,15 @@ const usersdb =  'db/users.json';
 //         }));
 // })();
 
+
 dotenv.config();
 
 const app = express();
+app.use(cors());
 app.use(cookieParser());
 app.use(express.static('public'));
 app.use(express.json());
+
 
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -63,12 +67,7 @@ app.get('/profile', (req, res) => {
   res.send(renderLoginPage());
 });
 
-app.get('/session', (req, res) => {
-  const user = {
-    username: 'isaac',
-    avatar: 'https://lh3.googleusercontent.com/a/AGNmyxYI8z1Y8UZMx8VjlNPZOK7tAJwzr-jeluo3p-tJ=s96-c'
-  };
-    
+app.get('/session', authCheck, (req, res) => {
   const data = {};
   if(req.cookies.user) {
     data.user = JSON.parse(req.cookies.user);
@@ -84,8 +83,15 @@ app.get('/api/items', authCheck, (req, res) => {
   res.json({ items });
 });
 
+app.get('/v/', authCheck, (req, res) => { 
+  const { id } = req.query;
+  res.json(renderViewPage(id, req.authUser));
+});
+
 app.post('/api/items', authCheck, async (req, res) => {
   const itemData = req.body;
+  console.log('huh ', itemData);
+  itemData.id = getRandomId();
   const users = await getAllUsers();
 
   for(let i = 0; i < users.length; i++) { 
@@ -110,6 +116,10 @@ app.listen(3000, () => {
 	console.log('app is running.')
 })
 
+function getRandomId () {
+  return Math.random().toString(36).substr(0, 9);
+}
+
 function getItems(user) {
   return user.items;
 } 
@@ -118,9 +128,43 @@ function getItems(user) {
 async function authCheck(req, res, next) {
   try {
    const authHeader = req.headers['authorization']
-   const tokenInHeader = authHeader && authHeader.split(' ')[1] 
-   const tokenInCookies = req.cookies.user ? JSON.parse(req.cookies.user).accessToken : '';
+   let tokenInHeader = authHeader && authHeader.split(' ')[1];
+   const userCookie = req.cookies.user;
+
+   let userCookieJSON = {};
+
+   if(userCookie) {
+    userCookieJSON = JSON.parse(userCookie);
+     if (typeof userCookieJSON === 'string') {
+        userCookieJSON = JSON.parse(userCookieJSON);
+     }
+   }
+
+   const refreshToken = req.cookies.user ? userCookieJSON.refreshToken : '';
+
+
+   let tokenInCookies = '';
+
+   if(!tokenInHeader) {
+      const accessToken = await getAccessToken(refreshToken);
+      tokenInCookies = accessToken;
+
+      if(req.cookies.user) {
+        userCookieJSON.accessToken = accessToken;
+        res.cookie('user', JSON.stringify(userCookieJSON), {maxAge: 1704085200 });
+      }
+
+   }
+
+
+   const optHeader = req.headers['use'];
+   if(optHeader == "refresh_token") {
+     const accessToken = await getAccessToken(tokenInHeader);
+     tokenInHeader = accessToken;
+   }
+
    const token = tokenInHeader ? tokenInHeader : tokenInCookies;
+
   
    if(!token) {
     throw Error("Unauthorized. Please provide valid credentials in the 'Authorization' header using the format 'Bearer <token>'.");
@@ -136,6 +180,7 @@ async function authCheck(req, res, next) {
     req.authUser = user;
    next();   
   } catch (err) {
+     console.log(err.message);
      return res.status(401).json({ msg: err.message });
   }
      
@@ -150,6 +195,20 @@ async function getUserInfo(token) {
     id
   } 
 } 
+
+async function getAccessToken(refreshToken) {
+  const res = await axios.post('https://www.googleapis.com/oauth2/v3/token', { 
+     "client_id": process.env.GOOGLE_CLIENT_ID,
+    "client_secret": process.env.GOOGLE_CLIENT_SECRET,
+    "refresh_token": refreshToken,
+    "grant_type": "refresh_token"
+  });
+
+  const data = res.data;
+  const accessToken = data['access_token'];
+
+  return accessToken;
+}
 
 async function createUser (user) {
     const username = user.username;
@@ -254,6 +313,38 @@ function renderHomePage() {
   return "";
 }
     
+  </script>
+</body>
+</html>
+  `
+}
+
+function getItemById (id, items) {
+  const item = items.filter((i) => {
+    return id == i.id;
+  })
+
+  return item[0];
+}
+
+
+function renderViewPage(id, user) {
+  const items = user.items;
+  const item = getItemById(id, items);
+  console.log(item);
+  return `
+  <!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title></title>
+</head>
+<body>
+  
+  hi
+   
+  <script>
   </script>
 </body>
 </html>
