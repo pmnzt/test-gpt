@@ -45,15 +45,17 @@ passport.use(new GoogleStrategy({
 
 
 app.get('/', (req, res) => {
-	res.send(renderHomePage());
+  res.send(renderHomePage());
 })
 
 app.get('/api/', authCheck, (req, res) => {
   res.sendStatus(200);
 })
 
-app.get('/login/google/', passport.authenticate('google', { scope: ['profile', 'email'], accessType: 'offline' }));
+app.get('/login/google/', passport.authenticate('google', { scope: ['profile', 'email'], accessType: 'offline', prompt: 'consent' }));
 app.get('/login/google/redirct', passport.authenticate('google', { session:false }), async (req, res) => {
+  console.log(req.user);
+  
   const userinfo = await authenticateUser(req.user);
   res.cookie('user', JSON.stringify(userinfo), {maxAge: 1704085200 });
   res.redirect('/');
@@ -90,7 +92,6 @@ app.get('/v/', authCheck, (req, res) => {
 
 app.post('/api/items', authCheck, async (req, res) => {
   const itemData = req.body;
-  console.log('huh ', itemData);
   itemData.id = getRandomId();
   const users = await getAllUsers();
 
@@ -113,7 +114,7 @@ app.post('/api/items', authCheck, async (req, res) => {
 });
 
 app.listen(3000, () => {
-	console.log('app is running.')
+  console.log('app is running.')
 })
 
 function getRandomId () {
@@ -141,12 +142,17 @@ async function authCheck(req, res, next) {
    }
 
    const refreshToken = req.cookies.user ? userCookieJSON.refreshToken : '';
+    console.log(userCookieJSON);
 
 
    let tokenInCookies = '';
+    
+    
 
    if(!tokenInHeader) {
+     
       const accessToken = await getAccessToken(refreshToken);
+     
       tokenInCookies = accessToken;
 
       if(req.cookies.user) {
@@ -155,6 +161,10 @@ async function authCheck(req, res, next) {
       }
 
    }
+    
+    
+    
+    
 
 
    const optHeader = req.headers['use'];
@@ -169,6 +179,7 @@ async function authCheck(req, res, next) {
    if(!token) {
     throw Error("Unauthorized. Please provide valid credentials in the 'Authorization' header using the format 'Bearer <token>'.");
    }
+    
 
    const userinfo = await getUserInfo(token);
    const user = await getUser(userinfo.id);
@@ -284,7 +295,7 @@ function renderHomePage() {
 
   <div id="title"></div>
   <script>
- 	
+  
     const title = document.querySelector("#title");
     
     const user = getCookie("user");
