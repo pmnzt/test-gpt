@@ -331,24 +331,7 @@ function getItemById (id, items) {
 function renderViewPage(id, user) {
   const items = user.items;
   const item = getItemById(id, items);
-  console.log(item);
-  return `
-  <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title></title>
-</head>
-<body>
-  
-  hi
-   
-  <script>
-  </script>
-</body>
-</html>
-  `
+  return item;
 }
 
 function renderLoginPage() {
